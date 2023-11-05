@@ -1,7 +1,5 @@
 import { Particle } from './particle.mjs'
 
-const PARTICLE_GAP = 20;
-
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext('2d');
 
@@ -10,37 +8,29 @@ let my = 0;
 
 let objects = [];
 
-function falloff(x, dist) {
-  return (1 - (x/dist)**2)**3;
-}
+let starttime = 0;
+function render(delta) {
+    window.requestAnimationFrame(render);
+    ctx.canvas.width = window.innerWidth;
+    ctx.canvas.height = window.innerHeight;
 
+    ctx.fillStyle = "black"
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-function spawnParticleGrid() {
-  for (let i = PARTICLE_GAP; i < window.innerWidth; i += PARTICLE_GAP)
-    for (let j = PARTICLE_GAP; j < window.innerHeight; j += PARTICLE_GAP)
-      objects.push(new Particle(
-        i + (Math.random()-0.5) * PARTICLE_GAP,
-        j + (Math.random()-0.5) * PARTICLE_GAP
-      ));
-}
+    objects.forEach(o => o.step(ctx, delta - starttime));
+    objects.forEach(o => o.draw(ctx));
 
-function draw() {
-  window.requestAnimationFrame(draw);
-  ctx.canvas.width = window.innerWidth;
-  ctx.canvas.height = window.innerHeight;
-
-  ctx.fillStyle = "black"
-  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-
-  objects.forEach(o => o.step());
-  objects.forEach(o => o.draw(ctx));
+    starttime = delta;
 };
 
 document.addEventListener('mousemove', e => {
-  mx = e.clientX;
-  my = e.clientY;
+    mx = e.clientX;
+    my = e.clientY;
 });
 
-spawnParticleGrid();
+/* Initialization */
+let particles = [...Particle.spawnParticleGrid(20)];
+objects.push(...particles);
 
-draw();
+/* Render Loop */
+window.requestAnimationFrame(render);
