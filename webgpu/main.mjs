@@ -1,4 +1,6 @@
 
+const GRID_SIZE  = 4;
+
 const canvas = document.querySelector('canvas');
 
 // Check if webgpu is supported
@@ -20,6 +22,14 @@ context.configure({
     device: device,
     format: canvasFormat, // Use the texture format recommended
 });
+
+const uniformArray = new Float32Array([GRID_SIZE, GRID_SIZE]);
+const uniformBuffer = device.createBuffer({
+    label: "Grid Uniforms",
+    size: uniformArray.byteLength,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+device.queue.writeBuffer(uniformBuffer, 0, uniformArray);
 
 const vertices = new Float32Array([
 //   X,    Y,
@@ -51,11 +61,13 @@ const vertexBufferLayout = {
 const cellShaderModule = device.createShaderModule({
     label: "Cell Shader",
     code: `
+        @group(0) @binding(0) var<uniform> grid: vec2f;
+
         @vertex
         fn vertexMain(@location(0) pos: vec2f)
             -> @builtin(position) vec4f
         {
-            return vec4f(pos, 0.0, 1.0);
+            return vec4f(pos / grid, 0.0, 1.0);
         }
 
         
@@ -83,7 +95,17 @@ const cellPipeline = device.createRenderPipeline({
             format: canvasFormat,
         }],
     }
-})
+});
+
+// Create bind group for grid
+const bindGroup = device.createBindGroup({
+    label: "Cell renderer bind group",
+    layout: cellPipeline.getBindGroupLayout(0),
+    entries: [{
+        binding: 0,
+        resource: { buffer: uniformBuffer }
+    }]
+});
 
 
 // Build a command encoder, and give it some commands
@@ -99,6 +121,7 @@ const pass = encoder.beginRenderPass({
 
 pass.setPipeline(cellPipeline);
 pass.setVertexBuffer(0, vertexBuffer);
+pass.setBindGroup(0, bindGroup);
 pass.draw(vertices.length / 2);
 
 pass.end();
