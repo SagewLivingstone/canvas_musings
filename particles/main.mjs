@@ -18,7 +18,7 @@ function render(delta) {
     ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
     objects.forEach(o => o.step(ctx, delta - starttime));
-    objects.forEach(o => o.draw(ctx));
+    objects.forEach(o => o.draw(ctx, false));
 
     starttime = delta;
 };

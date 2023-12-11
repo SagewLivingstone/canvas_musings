@@ -9,9 +9,6 @@ export class Particle {
     }
 
     step(ctx, delta) {
-        let oldx = this.x;
-        let olxy = this.y;
-
         this.x += this.vx * delta / 1000;
         this.y += this.vy * delta / 1000;
 
@@ -32,32 +29,16 @@ export class Particle {
 
     draw(ctx, debugLines = false) {
         ctx.fillStyle = "white";
-        // let dmx = this.x - mx;
-        // let dmy = this.y - my;
-        // let dist = Math.sqrt(dmx*dmx + dmy*dmy);
 
-        // let repulse = 500 / (Math.pow(dist, 0.4) + 10);
-
-        drawCircle(
-            ctx,
-            this.x,
-            this.y,
-            2
-            // this.x + (dmx / dist * repulse),
-            // this.y + (dmy / dist * repulse),
-        );
-        // for (let i = 1; i <= this.lum; i++) {
-        //   // this doesn't work well, because the light layers stack :(
-        //   ctx.globalAlpha = 0.5;
-        // }
+        drawCircle(ctx, this.x, this.y, 2);
 
         if (debugLines) {
             ctx.strokeStyle = "red";
             ctx.beginPath();
             ctx.moveTo(this.x, this.y);
             ctx.lineTo(
-                this.x, // + (dmx / dist * repulse),
-                this.y, // + (dmy / dist * repulse)
+                this.x + this.vx,
+                this.y + this.vy,
             );
             ctx.stroke();
         }
