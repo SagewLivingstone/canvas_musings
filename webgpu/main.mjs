@@ -1,5 +1,6 @@
 
-const GRID_SIZE  = 32;
+const GRID_SIZE  = 256;
+const UPDATE_INTERVAL_MS = 20;
 
 const canvas = document.querySelector('canvas');
 
@@ -44,14 +45,10 @@ const cellStateBuffer = [
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
 ];
-for (let i = 0; i < cellStateArray.length; i += 3) {
-    cellStateArray[i] = 1;
+for (let i = 0; i < cellStateArray.length; i++) {
+    cellStateArray[i] = Math.random() > 0.6 ? 1 : 0;
 }
 device.queue.writeBuffer(cellStateBuffer[0], 0, cellStateArray);
-for (let i = 0; i < cellStateArray.length; i++) {
-    cellStateArray[i] = i % 2;
-}
-device.queue.writeBuffer(cellStateBuffer[1], 0, cellStateArray);
 
 const vertices = new Float32Array([
 //   X,    Y,
@@ -136,18 +133,37 @@ const simulationShaderModule = device.createShaderModule({
         @group(0) @binding(2) var<storage, read_write> cellStateOut: array<u32>;
 
         fn cellIndex(cell: vec2u) -> u32 {
-            return cell.y * u32(grid.x) + cell.x;
+            return (cell.y % u32(grid.y)) * u32(grid.x)
+                 + (cell.x % u32(grid.x));
+        }
+
+        fn cellActive(x: u32, y: u32) -> u32 {
+            return cellStateIn[cellIndex(vec2u(x, y))];
         }
 
         @compute
         @workgroup_size(${WORKGROUP_SIZE}, ${WORKGROUP_SIZE})
         fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
             let index = cellIndex(global_id.xy);
-            if (cellStateIn[index] == 1) {
-                cellStateOut[index] = 0;
-            }
-            else {
-                cellStateOut[index] = 1;
+            let activeNeighbors = cellActive(global_id.x+1, global_id.y+1) +
+                        cellActive(global_id.x+1, global_id.y) +
+                        cellActive(global_id.x+1, global_id.y-1) +
+                        cellActive(global_id.x, global_id.y-1) +
+                        cellActive(global_id.x-1, global_id.y-1) +
+                        cellActive(global_id.x-1, global_id.y) +
+                        cellActive(global_id.x-1, global_id.y+1) +
+                        cellActive(global_id.x, global_id.y+1);
+
+            switch (activeNeighbors) {
+                case 2: {
+                    cellStateOut[index] = cellStateIn[index];
+                }
+                case 3: {
+                    cellStateOut[index] = 1;
+                }
+                default: {
+                    cellStateOut[index] = 0;
+                }
             }
         }
     `
@@ -243,7 +259,6 @@ const computePipeline = device.createComputePipeline({
     }
 });
 
-const UPDATE_INTERVAL_MS = 200;
 let step = 0;
 
 function render() {
