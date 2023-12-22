@@ -63,24 +63,39 @@ const cellShaderModule = device.createShaderModule({
     code: `
         @group(0) @binding(0) var<uniform> grid: vec2f;
 
-        @vertex
-        fn vertexMain(@location(0) pos: vec2f,
-                      @builtin(instance_index) index: u32)
-            -> @builtin(position) vec4f
-        {
-            let i = f32(index);
-            let cell = vec2f(floor(i / grid.x), i % grid.x);
-            let celloffset = cell / grid * 2;
-            let gridpos = (pos + 1)/grid - 1 + celloffset;
+        struct VertexInput {
+            @location(0) pos: vec2f,
+            @builtin(instance_index) index: u32,
+        };
 
-            return vec4f(gridpos, 0.0, 1.0);
+        struct VertexOutput {
+            @builtin(position) pos: vec4f,
+            @location(0) cell: vec2f,
         }
 
+        @vertex
+        fn vertexMain(input: VertexInput) -> VertexOutput
+        {
+            let i = f32(input.index);
+            let cell = vec2f(floor(i / grid.x), i % grid.x);
+            let celloffset = cell / grid * 2;
+            let gridpos = (input.pos + 1)/grid - 1 + celloffset;
+
+            var output: VertexOutput;
+            output.pos = vec4f(gridpos, 0, 1);
+            output.cell = cell;
+            return output;
+        }
+
+        struct FragmentInput {
+            @location(0) cell: vec2f,
+        };
         
         @fragment
-        fn fragmentMain() -> @location(0) vec4f
+        fn fragmentMain(input: FragmentInput) -> @location(0) vec4f
         {
-            return vec4f(1, 0, 0, 1);
+            let c = input.cell / grid;
+            return vec4f(c, 0.7-c.y, 1);
         }
     `
 });
