@@ -1,5 +1,5 @@
 
-const GRID_SIZE  = 4;
+const GRID_SIZE  = 32;
 
 const canvas = document.querySelector('canvas');
 
@@ -64,10 +64,16 @@ const cellShaderModule = device.createShaderModule({
         @group(0) @binding(0) var<uniform> grid: vec2f;
 
         @vertex
-        fn vertexMain(@location(0) pos: vec2f)
+        fn vertexMain(@location(0) pos: vec2f,
+                      @builtin(instance_index) index: u32)
             -> @builtin(position) vec4f
         {
-            return vec4f(pos / grid, 0.0, 1.0);
+            let i = f32(index);
+            let cell = vec2f(floor(i / grid.x), i % grid.x);
+            let celloffset = cell / grid * 2;
+            let gridpos = (pos + 1)/grid - 1 + celloffset;
+
+            return vec4f(gridpos, 0.0, 1.0);
         }
 
         
@@ -122,7 +128,7 @@ const pass = encoder.beginRenderPass({
 pass.setPipeline(cellPipeline);
 pass.setVertexBuffer(0, vertexBuffer);
 pass.setBindGroup(0, bindGroup);
-pass.draw(vertices.length / 2);
+pass.draw(vertices.length / 2, GRID_SIZE*GRID_SIZE);
 
 pass.end();
 
