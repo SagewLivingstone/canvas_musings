@@ -31,6 +31,17 @@ const uniformBuffer = device.createBuffer({
 });
 device.queue.writeBuffer(uniformBuffer, 0, uniformArray);
 
+const cellStateArray = new Uint32Array(GRID_SIZE * GRID_SIZE);
+const cellStateBuffer = device.createBuffer({
+    label: "Cell State",
+    size: cellStateArray.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+});
+for (let i = 0; i < cellStateArray.length; i += 3) {
+    cellStateArray[i] = 1;
+}
+device.queue.writeBuffer(cellStateBuffer, 0, cellStateArray);
+
 const vertices = new Float32Array([
 //   X,    Y,
   -0.8, -0.8, // Triangle 1 
@@ -62,6 +73,7 @@ const cellShaderModule = device.createShaderModule({
     label: "Cell Shader",
     code: `
         @group(0) @binding(0) var<uniform> grid: vec2f;
+        @group(0) @binding(1) var<storage> cellState: array<u32>;
 
         struct VertexInput {
             @location(0) pos: vec2f,
@@ -78,8 +90,10 @@ const cellShaderModule = device.createShaderModule({
         {
             let i = f32(input.index);
             let cell = vec2f(floor(i / grid.x), i % grid.x);
+            let state = f32(cellState[input.index]);
+
             let celloffset = cell / grid * 2;
-            let gridpos = (input.pos + 1)/grid - 1 + celloffset;
+            let gridpos = (input.pos * state + 1)/grid - 1 + celloffset;
 
             var output: VertexOutput;
             output.pos = vec4f(gridpos, 0, 1);
@@ -125,6 +139,10 @@ const bindGroup = device.createBindGroup({
     entries: [{
         binding: 0,
         resource: { buffer: uniformBuffer }
+    },
+    {
+        binding: 1,
+        resource: { buffer: cellStateBuffer }
     }]
 });
 
