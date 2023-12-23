@@ -5,18 +5,16 @@ const UPDATE_INTERVAL_MS = 20;
 const canvas = document.querySelector('canvas');
 
 // Check if webgpu is supported
-if (!navigator.gpu) {
-    throw new Error("WebGPU not supported");
-}
+if (!navigator.gpu) throw new Error("WebGPU not supported");
 
 // Check if we have a compatible device to grab
 const adapter = await navigator.gpu.requestAdapter();
-if (!adapter) {
-    throw new Error("No appropriate GPU adapter found");
-}
+if (!adapter) throw new Error("No appropriate GPU adapter found");
+
+const device = await adapter.requestDevice();
+if (!device) throw new Error("No GPU device found");
 
 // Configure canvas to use device
-const device = await adapter.requestDevice();
 const context = canvas.getContext("webgpu");
 const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
@@ -126,7 +124,7 @@ const WORKGROUP_SIZE = 8;
 
 const simulationShaderModule = device.createShaderModule({
     label: "Game of Life Shader",
-    code: `
+    code: /* wgsl */`
         @group(0) @binding(0) var<uniform> grid: vec2f;
 
         @group(0) @binding(1) var<storage> cellStateIn: array<u32>;
