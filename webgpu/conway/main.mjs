@@ -1,7 +1,7 @@
-import { compute_src } from "./compute_shader.js";
-import { render_src } from "./render_shader.js";
+import compute_src from "./conway_compute.js";
+import render_src from "./conway_render.js";
 
-const GRID_SIZE  = 256;
+const GRID_SIZE  = 128;
 const UPDATE_INTERVAL_MS = 20;
 const WORKGROUP_SIZE = 8;
 
@@ -34,22 +34,22 @@ const uniformBuffer = device.createBuffer({
 device.queue.writeBuffer(uniformBuffer, 0, uniformArray);
 
 const cellStateArray = new Uint32Array(GRID_SIZE * GRID_SIZE);
-const cellStateBuffer = [
-    device.createBuffer({
-        label: "Cell State A",
-        size: cellStateArray.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    }),
-    device.createBuffer({
-        label: "Cell State B",
-        size: cellStateArray.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-];
+const cellStateBufferA = device.createBuffer(
+{
+    label: "Cell State A",
+    size: cellStateArray.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+});
+const cellStateBufferB = device.createBuffer(
+{
+    label: "Cell State B",
+    size: cellStateArray.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+});
 for (let i = 0; i < cellStateArray.length; i++) {
     cellStateArray[i] = Math.random() > 0.6 ? 1 : 0;
 }
-device.queue.writeBuffer(cellStateBuffer[0], 0, cellStateArray);
+device.queue.writeBuffer(cellStateBufferA, 0, cellStateArray);
 
 const vertices = new Float32Array([
 //   X,    Y,
@@ -78,20 +78,21 @@ const vertexBufferLayout = {
     }]
 }
 
+// Set up the layout for bind groups
 const bindGroupLayout = device.createBindGroupLayout({
     label: "Cell renderer bind group layout",
     entries: [
-        {
+        { // Grid size uniform
             binding: 0,
             visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
             buffer: {}
         },
-        {
+        { // Cell state to read
             binding: 1,
-            visibility: GPUShaderStage.VERTEX | GPUShaderStage.COMPUTE,
+            visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
             buffer: { type: 'read-only-storage' }
         },
-        {
+        { // Cell state to write
             binding: 2,
             visibility: GPUShaderStage.COMPUTE,
             buffer: { type: 'storage' }
@@ -110,11 +111,11 @@ const bindGroups = [
         },
         {
             binding: 1,
-            resource: { buffer: cellStateBuffer[0] }
+            resource: { buffer: cellStateBufferA }
         },
         {
             binding: 2,
-            resource: { buffer: cellStateBuffer[1] }
+            resource: { buffer: cellStateBufferB }
         }]
     }),
     device.createBindGroup({
@@ -126,11 +127,11 @@ const bindGroups = [
         },
         {
             binding: 1,
-            resource: { buffer: cellStateBuffer[1] }
+            resource: { buffer: cellStateBufferB } // Swapped buffers
         },
         {
             binding: 2,
-            resource: { buffer: cellStateBuffer[0] }
+            resource: { buffer: cellStateBufferA }
         }]
     })
 ];
