@@ -20,12 +20,10 @@ if (!adapter) {
 
 // Configure canvas to use device
 const device = await adapter.requestDevice();
+if (!device) throw new Error("No device found");
 const context = canvas.getContext("webgpu");
 const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-context.configure({
-    device: device,
-    format: canvasFormat, // Use the texture format recommended
-});
+context.configure({ device: device, format: canvasFormat });
 
 const uniformArray = new Float32Array([GRID_SIZE, GRID_SIZE]);
 const uniformBuffer = device.createBuffer({
@@ -79,16 +77,6 @@ const vertexBufferLayout = {
         shaderLocation: 0, // Vertex shader location
     }]
 }
-
-const cellShaderModule = device.createShaderModule({
-    label: "Cell Shader",
-    code: render_src
-});
-
-const simulationShaderModule = device.createShaderModule({
-    label: "Game of Life Compute Shader",
-    code: compute_src(WORKGROUP_SIZE)
-});
 
 const bindGroupLayout = device.createBindGroupLayout({
     label: "Cell renderer bind group layout",
@@ -153,7 +141,8 @@ const pipelineLayout = device.createPipelineLayout({
 });
 
 // Build render pipeline
-const cellPipeline = device.createRenderPipeline({
+const cellShaderModule = device.createShaderModule({ label: "Cell Shader", code: render_src });
+const renderPipeline = device.createRenderPipeline({
     label: "Cell Pipeline",
     layout: pipelineLayout,
     vertex: {
@@ -170,6 +159,8 @@ const cellPipeline = device.createRenderPipeline({
     }
 });
 
+// Build compute pipeline
+const simulationShaderModule = device.createShaderModule({ label: "Compute Shader", code: compute_src(WORKGROUP_SIZE) });
 const computePipeline = device.createComputePipeline({
     label: "Compute Pipeline",
     layout: pipelineLayout,
@@ -182,11 +173,11 @@ const computePipeline = device.createComputePipeline({
 let step = 0;
 
 function render() {
-    const encoder = device.createCommandEncoder();
+    const cmdEncoder = device.createCommandEncoder();
 
     // Compute pass
 
-    const computePass = encoder.beginComputePass();
+    const computePass = cmdEncoder.beginComputePass();
     computePass.setPipeline(computePipeline);
     computePass.setBindGroup(0, bindGroups[step % 2]);
     
@@ -199,7 +190,7 @@ function render() {
     
     // Render pass
 
-    const renderPass = encoder.beginRenderPass({
+    const renderPass = cmdEncoder.beginRenderPass({
         colorAttachments: [{
             view: context.getCurrentTexture().createView(),
             loadOp: "clear",
@@ -209,7 +200,7 @@ function render() {
     });
 
     // Draw the grid
-    renderPass.setPipeline(cellPipeline);
+    renderPass.setPipeline(renderPipeline);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setBindGroup(0, bindGroups[step % 2]);
     renderPass.draw(vertices.length / 2, GRID_SIZE*GRID_SIZE);
@@ -217,7 +208,7 @@ function render() {
     // End and submit
     renderPass.end();
     // Submit the command buffer to the device's queue for processing
-    device.queue.submit([encoder.finish()]);
+    device.queue.submit([cmdEncoder.finish()]);
 }
 
 setInterval(render, UPDATE_INTERVAL_MS);
