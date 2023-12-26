@@ -1,7 +1,7 @@
 import compute_src from "./conway_compute.js";
 import render_src from "./conway_render.js";
 
-const GRID_SIZE  = 128;
+const GRID_SIZE  = 256;
 const UPDATE_INTERVAL_MS = 20;
 const WORKGROUP_SIZE = 8;
 
@@ -195,7 +195,7 @@ function render() {
         colorAttachments: [{
             view: context.getCurrentTexture().createView(),
             loadOp: "clear",
-            clearValue: [0, 0.35, 0.4, 1],
+            clearValue: [0, 0.0, 0.0, 1],
             storeOp: "store",
         }]
     });
